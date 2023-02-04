@@ -4,6 +4,7 @@ from PyQt5.QtGui import (QFont,QPalette, QColor, QBrush, QPixmap)
 import pandas as pd
 import ast
 import json
+import random
 
 class Language(QMainWindow):
     def __init__(self):
@@ -19,6 +20,7 @@ class Language(QMainWindow):
         self.bez_otvet=[] # массив для слов без ответа, чтобы повторно пройти тест
         self.sp = ['Англ', 'Русс']
         self.vib=[]
+        self.check_value =False
         self.data_from_xls()
         self.main()
 
@@ -27,79 +29,57 @@ class Language(QMainWindow):
         self.df = self.xl.parse('Words')
         self.alls  = self.df.reset_index().to_dict('records')
 
-    def com_vib_dict(self):     
-        if self.shet_prodol_or_snulya==1:
-            places2 = []
-            with open('num_less.txt', 'r') as filehandle:
-                for line in filehandle:
-                    currentPlace = line[:-1]
-                    places2.append(currentPlace)
-            self.st=int(places2[0])
-            self.en=int(places2[1])
-        else:
-            self.st = int(self.ent_less.text())
-            self.en = int(self.ent_less_end.text())
+    def com_vib_dict(self):   # Проверка и сравнение текстового файла Words и словаря в файле stat.txt
+        self.alls2 = []
+        new_stat = {'Words': {}}
+        self.alls_all_sheet = {}
+        for i in new_stat:
+            df_l = self.xl.parse(i)
+            self.alls_all_sheet[i] = df_l.reset_index().to_dict('records')
 
-        if self.st == 0 and self.en == 0:
-            er = 'Выберите номера\n уроков'
-            self.lb_err.config(text=er, font="Arial 14", fg='red')
+        for i in self.alls:
+            if i['Lesson'] >= self.st and i['Lesson'] <= self.en:
+                self.alls2.append(i)
+        self.alls = self.alls2
 
-        elif self.st > self.en:
-            er = 'Номер конечного урока\n должен быть больше\n начального'
-            self.lb_err.config(text=er, font="Arial 14", fg='red')
+        with open('stat.txt',encoding='utf-8') as f:
+            data = f.read()
+        self.stat = ast.literal_eval(data)
+        if self.stat == {}:
+            self.stat = {'Words': {}}
+        alls_coly = self.alls_all_sheet.copy()
+        for s in alls_coly:
+            sp_all_cop = ['Англ', 'Русс']
+            for i in alls_coly[s]:
+                j_dict = {}
+                for j in i:
+                    if j in sp_all_cop and type(i[j]) != int and i[j] != '0':
+                        j_dict[i[j]] = 0
+                num_str = str(i['Num'])
+                new_stat[s][num_str] = j_dict
 
-        else:
-            self.alls2 = []
-            new_stat = {'Words': {}}
-            self.alls_all_sheet = {}
-            for i in new_stat:
-                df_l = self.xl.parse(i)
-                self.alls_all_sheet[i] = df_l.reset_index().to_dict('records')
+        for k in new_stat:
+            for i in new_stat[k]:
+                if i not in self.stat[k]:
+                    self.stat[k][i] = {}
+                if self.stat[k][i] != new_stat[k][i]:
+                    new_line = {}
+                    for f in new_stat[k][i]:
+                        if f not in self.stat[k][i]:
+                            self.stat[k][i][f] = 0
+                        stat_copy = self.stat[k].copy()
+                        new_line[f] = stat_copy[i][f]
+                        self.stat[k][i].pop(f)
+                    self.stat[k][i] = new_line
+        stat_copy = self.stat.copy()
+        for i in stat_copy:
+            copy_3 = stat_copy[i].copy()
+            for j in copy_3:
+                if j not in new_stat[i]:
+                    del self.stat[i][j]
 
-            for i in self.alls:
-                if i['Lesson'] >= self.st and i['Lesson'] <= self.en:
-                    self.alls2.append(i)
-            self.alls = self.alls2
-
-            with open('stat.txt',encoding='utf-8') as f:
-                data = f.read()
-            self.stat = ast.literal_eval(data)
-            if self.stat == {}:
-                self.stat = {'Words': {}}
-            alls_coly = self.alls_all_sheet.copy()
-            for s in alls_coly:
-                sp_all_cop = ['Англ', 'Русс']
-                for i in alls_coly[s]:
-                    j_dict = {}
-                    for j in i:
-                        if j in sp_all_cop and type(i[j]) != int and i[j] != '0':
-                            j_dict[i[j]] = 0
-                    num_str = str(i['Num'])
-                    new_stat[s][num_str] = j_dict
-
-            for k in new_stat:
-                for i in new_stat[k]:
-                    if i not in self.stat[k]:
-                        self.stat[k][i] = {}
-                    if self.stat[k][i] != new_stat[k][i]:
-                        new_line = {}
-                        for f in new_stat[k][i]:
-                            if f not in self.stat[k][i]:
-                                self.stat[k][i][f] = 0
-                            stat_copy = self.stat[k].copy()
-                            new_line[f] = stat_copy[i][f]
-                            self.stat[k][i].pop(f)
-                        self.stat[k][i] = new_line
-            stat_copy = self.stat.copy()
-            for i in stat_copy:
-                copy_3 = stat_copy[i].copy()
-                for j in copy_3:
-                    if j not in new_stat[i]:
-                        del self.stat[i][j]
-
-            with open('stat.txt', 'w+', encoding='utf-8') as fle:
-                json.dump(self.stat, fle, indent='    ', ensure_ascii=False)
-
+        with open('stat.txt', 'w+', encoding='utf-8') as fle:
+            json.dump(self.stat, fle, indent='    ', ensure_ascii=False)
 
     def main(self):
         self.frame_main = QFrame()
@@ -123,7 +103,7 @@ class Language(QMainWindow):
         self.frame_down = QFrame()
         self.lb_max_ur = QLabel(f'Всего уроков = {max(nbur)}')
         self.lb_max_ur.setFont(font)
-        self.check_r_or_st = QCheckBox('Если стоит галочка- показывать рандомно')
+        self.check_r_or_st = QCheckBox('Показывать слова рандомно')
         self.choose_lang = QLabel('Выберите язык')
         self.choose_lang .setFont(font)
         self.sp = ['Англ', 'Русс']
@@ -157,6 +137,7 @@ class Language(QMainWindow):
         self.btn3.clicked.connect(self.checks)
 
     def checks(self):
+        self.check_value = self.check_r_or_st.isChecked()
         for rb in self.radios:
             if rb.isChecked():
                 self.vib  = rb.text()
@@ -165,13 +146,33 @@ class Language(QMainWindow):
             self.lb_err.setText('Выберите язык')
         else:
             self.lb_err.setText('')
-            self.menu2()
+            if self.shet_prodol_or_snulya==1:
+                places2 = []
+                with open('num_less.txt', 'r') as filehandle:
+                    for line in filehandle:
+                        currentPlace = line[:-1]
+                        places2.append(currentPlace)
+                self.st=int(places2[0])
+                self.en=int(places2[1])
+            else:
+                self.st = int(self.ent_less.text())
+                self.en = int(self.ent_less_end.text())
+            if self.st == 0 and self.en == 0:
+                self.lb_err.setText('Выберите номера\n уроков')
+
+            elif self.st > self.en:
+                self.lb_err.setText('Номер конечного урока\n должен быть больше\n начального')
+            else:
+                self.com_vib_dict()
+                self.menu2()
 
     def menu2(self):
         self.frame_main.deleteLater()
         self.frame_main = QFrame()
         self.frame_up2 = QFrame()
         self.frame_down2 = QFrame()
+        self.frame_know = QFrame()
+        self.frame_repeat = QFrame()
         self.btn_back = QPushButton("В начальное меню")
         self.btn_save = QPushButton("Сохранить")
 
@@ -183,30 +184,236 @@ class Language(QMainWindow):
         self.btn_continue = QPushButton("Продолжить")
         self.btn_continue.setFixedHeight(40)
         self.btn_continue.setFixedWidth(100)
-        self.txt_knowledge = QLabel("Знаешь?")
-        self.label_stat = QLabel("Статистика слова")
-        self.label_total = QLabel("Всего слов")
-        self.label_question = QLabel("")
-        self.label_answer = QLabel("")
+        self.label_stat = QLabel("")
+        self.label_total = QLabel("")
+        font = QFont("Times", 16)
+        self.label_question = QLabel("")  # Слово
+        self.label_question.setFont(font)
+        self.label_answer = QLabel("")    # Перевод
+        self.label_answer.setFont(font)
         layout_frame_down = QVBoxLayout()
         layout_frame_down.addWidget(self.btn_continue)
-        layout_frame_down.addWidget(self.txt_knowledge)
         layout_frame_down.addWidget(self.label_stat)
         layout_frame_down.addWidget(self.label_total)
         layout_frame_down.addWidget(self.label_question)
         layout_frame_down.addWidget(self.label_answer)
         self.frame_down2.setLayout(layout_frame_down)
+
+        layout_frame_know = QHBoxLayout()
+        self.but_know = QPushButton("Знаю")
+        self.but_know.setVisible(False)
+        layout_frame_know.addWidget(self.but_know)
+        self.frame_know.setLayout(layout_frame_know)
+
+        layout_frame_repeat = QVBoxLayout()
+        self.label_end = QLabel("")
+        self.label_end.setFont(font)
+        layout_frame_repeat.addWidget(self.label_end)
+        self.frame_repeat.setLayout(layout_frame_repeat)
+
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.frame_up2)
         main_layout.addWidget(self.frame_down2)
+        main_layout.addWidget(self.frame_know)
+        main_layout.addWidget(self.frame_repeat)
         self.frame_main.setLayout(main_layout)
         self.setCentralWidget(self.frame_main)
         self.btn_back.clicked.connect(self.back)
-        self.btn_continue.clicked.connect(self.continue_)
+        self.btn_continue.clicked.connect(self.testting)
+        self.but_know.clicked.connect(self.know)
 
-    def continue_(self):
-        self.label_question.setText("Привет")
-        self.label_answer.setText("Hello")
+    def know(self):
+        self.but_know.setStyleSheet('QPushButton {background-color: lime; color: white;}')
+        self.count_right += 1
+        self.shet_know = 0
+
+        for i in self.stat['Words']:
+            if self.r in self.stat['Words'][i]:
+                self.stat['Words'][i][self.r] += 1
+
+        with open('stat.txt', 'w+', encoding='utf-8') as file:
+            json.dump(self.stat, file, indent='    ', ensure_ascii=False)
+
+    def sohran(self):
+        with open('sohranen.txt', 'w+', encoding='utf-8') as file:
+            json.dump(self.test, file, indent='    ', ensure_ascii=False)
+        if self.vib == 'Русс':
+            otvet='Англ'
+        else:
+            otvet='Русс'
+        places = [self.vib,otvet]
+        with open('for_sohr.txt', 'w') as filehandle:  
+            for listitem in places:
+                filehandle.write('%s\n' % listitem)
+        a=[self.st,self.en,'Words']
+        with open('num_less.txt', 'w') as filehandle:  
+            for listitem in a:
+                filehandle.write('%s\n' % listitem)
+
+    def ochist_file(self):
+        f=open('sohranen.txt', 'w')
+        f.close()
+        file=open('for_sohr.txt','w')
+        file.close()
+
+    def prodoljit(self):
+        self.shet_prodol_or_snulya +=1
+        with open('sohranen.txt',encoding='utf-8') as f:
+            data = f.read()
+        self.test_from_file = ast.literal_eval(data)
+        places2 = []
+        with open('num_less.txt', 'r') as filehandle:
+            for line in filehandle:
+                currentPlace = line[:-1]
+                places2.append(currentPlace)
+        places3 = []
+        with open('for_sohr.txt', 'r') as filehandle:
+            for line in filehandle:
+                currentPlace = line[:-1]
+                places3.append(currentPlace)
+        self.vib=places3[0]
+        self.for_table_sp=places3[1].split(",")
+        self.com_vib_dict()
+        self.testting()
+
+    def testting(self):
+        if self.shet_prodol_or_snulya==0:
+            self.for_table_sp = []
+            if self.vib != []:
+                if self.vib == 'Англ':
+                    self.for_table_sp.append('Русс')
+                else:
+                    self.for_table_sp.append('Англ')
+        if self.shet == 0:  # Начало теста, заполнение его
+            self.count_all = 0
+            self.count_right = 0
+            if self.shet_for_povtor==0:  # Если это тест с нуля, а не с повторным проходом неузнанных слов
+                if self.shet_prodol_or_snulya==1:
+                    self.test=self.test_from_file
+                else:
+                    self.test = []
+                    self.test = self.alls.copy()
+            else:
+                self.test=self.bez_otvet
+                self.bez_otvet=[]
+
+            self.stat_min_score = {}  # Второй сбор Словаря всех слов для теста (уже без нулевых значений)
+            # И выбора из них миним по очкам
+            test2 = []
+            self.test_count = []
+            for i in self.test:
+                num_str = str(i['Num'])
+                if i[self.vib] != 0 and i[self.vib] != '0' and type(i[self.vib]) != int:
+                    ku = i[self.vib]
+                    self.stat_min_score[num_str] = {}
+                    self.stat_min_score[num_str] = self.stat['Words'][num_str][ku]
+                    test2.append(i)
+                    if i[self.vib] not in self.test_count:
+                        self.test_count.append(i[self.vib])
+            self.test = test2
+        if self.test != [] and self.stat_min_score != {}:  # Продолжение теста, каждое нажатие кнопки "Next"
+            self.label_stat.setText("Статистика слова")
+            self.label_total.setText("Всего слов")
+            self.but_know.setVisible(True)
+            self.label_end.setText('')
+            if self.sh2 % 2 == 0: # Четное нажатие клавиши, показывает вопрос
+                self.but_know.setStyleSheet('QPushButton {background-color: red; color: white;}')
+                self.but_know.setDisabled(False)
+                self.label_answer.setText('')  
+                if self.shet_know==1:
+                    if self.slovo_dlya_povtora_testa!=0:
+                        self.bez_otvet.append(self.slovo_dlya_povtora_testa)
+
+                self.shet_know = 0
+                self.for_table_main = dict()
+                if self.check_value==True:
+                    self.rand_num = random.choice(list(self.stat_min_score.keys()))
+                    self.c_test=self.stat_min_score[self.rand_num]
+                else:
+                    self.rand_num = random.choice([key for key in self.stat_min_score if
+                                                    self.stat_min_score[key] == min(self.stat_min_score.values())])
+                    self.c_test = min(self.stat_min_score.values())
+                self.r = 'n'
+                self.table2 = []  # записывает в таблицу все пхожие эл на случайно выбранный для теста
+                while self.r == 'n':
+                    for i in self.test:
+                        if i['Num'] == int(self.rand_num):
+                            self.r = i[self.vib]
+                        if self.r != 'n':
+                            break
+                if '、' in self.r:
+                    self.r_l = self.r.split('、')
+                else:
+                    self.r_l = [self.r]
+                for i in self.test:
+                    for j in self.r_l:
+                        if '、' in i[self.vib]:
+                            isv = i[self.vib].split('、')
+                            if j in isv:
+                                if i not in self.table2:
+                                    self.table2.append(i)
+                        else:
+                            if j == i[self.vib]:
+                                if i not in self.table2:
+                                    self.table2.append(i)
+                self.ts = []
+                for j in self.table2:
+                    shetcik = 0
+                    self.for_table_main = dict()
+                    for i in self.for_table_sp:
+                        if len(self.r_l) > 1:
+                            if shetcik == 0:
+                                self.for_table_main[i] = str(j[i]) + ' , On=  ' + str(j['On'])
+                                shetcik += 1
+                            else:
+                                self.for_table_main[i] = j[i]
+                        else:
+                            self.for_table_main[i] = j[i]
+                    self.ts.append(self.for_table_main)
+                t = f'Количество слов= {len(self.test_count)}.'
+                self.label_total.setText(t)
+    
+                self.label_stat.setText('Статистика слова: ' + str(self.c_test))
+
+                self.label_question.setText(self.r)  # Вывод слова для теста
+                self.shet += 1
+                self.sh2 += 1
+            else:   # Нечетное нажатие клавиши прохождения теста, открытие результата
+                self.but_know.setDisabled(True)
+                self.count_all += 1
+                self.shet_know = 1  # счетчик, нажата ли кнопка Know
+
+                self.sh2 += 1
+                for i in self.ts:
+                    for j in i:
+                        self.label_answer.setText(i[j])                      
+
+                for i in self.test:
+                    if i[self.vib] == self.r:
+                        nm = str(i['Num'])
+                        self.slovo_dlya_povtora_testa=i
+                        self.test.remove(i)
+                        self.stat_min_score.pop(nm)
+                        if i[self.vib] in self.test_count:
+                            self.test_count.remove(i[self.vib])
+        else:
+            self.but_know.setVisible(False)
+            if self.shet_know==1:
+                if self.slovo_dlya_povtora_testa!=0:
+                    self.bez_otvet.append(self.slovo_dlya_povtora_testa)
+            self.label_end.setText('Список слов закончился,\n начинается заново')
+            self.label_answer.setText('')
+            self.label_question.setText('')
+            self.data_from_xls()
+            self.sp = ['Англ', 'Русс']
+            self.shet = 0
+            self.ochist_file()   
+            self.alls2 = []
+            for i in self.alls:
+                if i['Lesson'] >= self.st and i['Lesson'] <= self.en:
+                    self.alls2.append(i)
+            self.alls = self.alls2
+            self.slovo_dlya_povtora_testa=0
 
     def back(self):
         self.frame_main.deleteLater()
@@ -217,7 +424,7 @@ if __name__ == '__main__':
     language = Language()
     language.show()
     # set window size
-    language.setFixedSize(400, 400)
+    language.setFixedSize(400, 500)
     # set color
     language.setStyleSheet("background-color: #E6E6FA;")
     sys.exit(app.exec_())
