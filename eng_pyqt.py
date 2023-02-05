@@ -256,6 +256,7 @@ class Language(QMainWindow):
         font2 = QFont("Times", 10)
         self.label_count_right.setFont(font2)
         self.again_but = QPushButton("Повторить")
+        self.again_but.setVisible(False)
         self.again_label = QLabel("")
         self.again_label.setFont(font2)
         layout_frame_repeat.addWidget(self.label_end)
@@ -476,6 +477,7 @@ class Language(QMainWindow):
         else:
             self.label_count_right.setText('')
             self.but_know.setVisible(False)
+            self.again_but.setVisible(False)
             if self.shet_know==0:
                 if self.slovo_dlya_povtora_testa!=0:
                     self.bez_otvet.append(self.slovo_dlya_povtora_testa)
