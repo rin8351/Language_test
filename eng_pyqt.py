@@ -1,6 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFrame, QLabel, QLineEdit, QCheckBox, QRadioButton, QVBoxLayout, QHBoxLayout, QPushButton
 from PyQt5.QtGui import (QFont,QPalette, QColor, QBrush, QPixmap)
+from PyQt5.QtCore import Qt
 import pandas as pd
 import ast
 import json
@@ -10,17 +11,20 @@ class Language(QMainWindow):
     def __init__(self):
         super().__init__()
         self.windowss = QFrame()
-        self.shet = 0
+        self.shet = 0 # счетчик для заполнения массива с словами, которые будут в тесте
         self.stat = dict()
-        self.shet_know = 0
-        self.shet_prodol_or_snulya=0 # продолжить незаконченный тест в прошлый раз или весь список проходить
+        self.shet_know = 0 # счетчик знаю или не знаю слово
+        self.start_was_clicked = False
+        self.shet_prodol_or_snulya=0 # продолжить незаконченный тест в прошлый раз или весь список проходить занова
         self.slovo_dlya_povtora_testa=0
-        self.shet_for_povtor=0
+        self.shet_for_povtor=0 # счетчик для повтора слов, если у них не было ответа
         self.bez_otvet=[] # массив для слов без ответа, чтобы повторно пройти тест
         self.sp = ['Англ', 'Русс']
         self.vib=[]
         self.check_value =False
-        self.test_is_filled = False
+        print('-------------------------------------------')
+        self.setGeometry(300, 300, 300, 200)
+        self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
         self.data_from_xls()
         self.main()
 
@@ -28,6 +32,7 @@ class Language(QMainWindow):
         self.xl = pd.ExcelFile('Words.xlsx')
         self.df = self.xl.parse('Words')
         self.alls  = self.df.reset_index().to_dict('records')
+        print('1 data_from_xls',len(self.alls))
 
     def com_vib_dict(self):   # Проверка и сравнение текстового файла Words и словаря в файле stat.txt
         self.alls2 = []
@@ -41,6 +46,7 @@ class Language(QMainWindow):
             if i['Lesson'] >= self.st and i['Lesson'] <= self.en:
                 self.alls2.append(i)
         self.alls = self.alls2
+        print('com_vib_dict',len(self.alls))
 
         with open('stat.txt',encoding='utf-8') as f:
             data = f.read()
@@ -82,7 +88,7 @@ class Language(QMainWindow):
             json.dump(self.stat, fle, indent='    ', ensure_ascii=False)
 
     def main(self):
-        self.sh2 = 0
+        self.sh2 = 0 # четное нажатие кнопки "Продолжить"
         self.frame_main = QFrame()
         self.frame_up = QFrame()
         font = QFont("Times", 10)
@@ -153,9 +159,15 @@ class Language(QMainWindow):
         self.btn_witn_zero.clicked.connect(self.checks_zero)
 
     def checks_zero(self):
-        self.data_from_xls()
-        self.over()
+        print('CHECKS_ZERO')
         self.sh2 = 0
+        print('self.data_from_xls')
+        self.data_from_xls()
+        self.st = int(self.ent_less.text())
+        self.en = int(self.ent_less_end.text())
+        print('self.over')
+        self.over()
+        print('self.checks in over and len alls in Over')
         self.checks()
 
     def continue_funk(self):
@@ -180,6 +192,7 @@ class Language(QMainWindow):
         self.testting()
 
     def checks(self):
+        print('CHECKS')
         self.check_value = self.check_r_or_st.isChecked()
         for rb in self.radios:
             if rb.isChecked():
@@ -206,6 +219,7 @@ class Language(QMainWindow):
             elif self.st > self.en:
                 self.lb_err.setText('Номер конечного урока\n должен быть больше\n начального')
             else:
+                self.start_was_clicked = True
                 self.com_vib_dict()
                 self.menu2()
 
@@ -327,10 +341,10 @@ class Language(QMainWindow):
                 filehandle.write('%s\n' % listitem)
 
     def ochist_file(self):
-        f=open('sohranen.txt', 'w')
-        f.close()
-        file=open('for_sohr.txt','w')
-        file.close()
+        with open('sohranen.txt', 'w') as f:
+            f.write('')
+        with open('for_sohr.txt', 'w') as f:
+            f.write('')
         self.frame_main.deleteLater()
         self.main()
 
@@ -389,7 +403,6 @@ class Language(QMainWindow):
                     if i[self.vib] not in self.test_count:
                         self.test_count.append(i[self.vib])
             self.test = test2
-        self.test_is_filled = True
         if self.test != [] and self.stat_min_score != {}:  # Продолжение теста, каждое нажатие кнопки "Next"
             self.btn_continue.setText('Дальше')
             self.again_label.setText('')
@@ -503,20 +516,19 @@ class Language(QMainWindow):
             if i['Lesson'] >= self.st and i['Lesson'] <= self.en:
                 self.alls2.append(i)
         self.alls = self.alls2
+        print('len in over',len(self.alls))
         self.slovo_dlya_povtora_testa=0
 
     def back(self):
+        print('BACK')
         self.frame_main.deleteLater()
         self.main()
-        if self.test_is_filled==True and len(self.alls) != len(self.test):
+        if self.start_was_clicked==True:
             self.btn_witn_zero.setVisible(True)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     language = Language()
     language.show()
-    # set window size
-    language.setFixedSize(440, 540)
-    # set color
     language.setStyleSheet("background-color: #E6E6FA;")
     sys.exit(app.exec_())
