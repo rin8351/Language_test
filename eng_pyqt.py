@@ -33,7 +33,9 @@ class Language(QMainWindow):
         self.sp = ['Англ', 'Русс']
         self.sh2 = 0
         self.shet_for_povtor = 0 # счетчик для повтора слов, если у них не было ответа
+        self.property_vib = []
         self.data_from_xls()
+        self.property = self.df['Pr'].unique().tolist()
         self.vib = []
 
     def data_from_xls(self):
@@ -45,7 +47,8 @@ class Language(QMainWindow):
         self.alls2 = []
         for i in self.alls:
             if i['Lesson'] >= self.st and i['Lesson'] <= self.en:
-                self.alls2.append(i)
+                if i['Pr'] in self.property_vib:
+                    self.alls2.append(i)
         self.alls = self.alls2
 
     def check_new_words_for_stat(self): # Проверка и сравнение текстового файла Words и словаря в файле stat.txt
@@ -90,7 +93,6 @@ class Language(QMainWindow):
             for j in copy_3:
                 if j not in new_stat[i]:
                     del self.stat[i][j]
-
         with open('stat.txt', 'w+', encoding='utf-8') as fle:
             json.dump(self.stat, fle, indent='    ', ensure_ascii=False)
 
@@ -109,6 +111,9 @@ class Language(QMainWindow):
             self.ent_less_end = QLineEdit(text=str(max(nbur)))
         else:
             self.ent_less_end = QLineEdit(text=str(self.en))
+        # set white color to QLineEdit
+        self.ent_less.setStyleSheet("background-color: white")
+        self.ent_less_end.setStyleSheet("background-color: white")
         self.ent_less.setFixedWidth(50)
         self.ent_less_end.setFixedWidth(50)
         self.lb_err = QLabel()
@@ -125,6 +130,13 @@ class Language(QMainWindow):
         for i in self.sp:
             rb = QRadioButton(i)
             self.radios.append(rb)
+        self.choose_prop = QLabel('Выберите свойство')
+        self.choose_prop.setFont(font)
+        self.checkboxs=[]
+        for i in self.property:
+            rb = QCheckBox(i)
+            self.checkboxs.append(rb)
+            rb.setChecked(True)
         self.btn3 = QPushButton("Включить тест")
         self.btn_witn_zero = QPushButton("Пройти тест с нуля")
         self.but_contin = QPushButton("Продолжить\n сохраненный тест")
@@ -148,6 +160,9 @@ class Language(QMainWindow):
         layout_frame_down.addWidget(self.check_r_or_st)
         layout_frame_down.addWidget(self.choose_lang)
         for rb in self.radios:
+            layout_frame_down.addWidget(rb)
+        layout_frame_down.addWidget(self.choose_prop)
+        for rb in self.checkboxs:
             layout_frame_down.addWidget(rb)
         layout_frame_down.addWidget(self.lb_err)
         layout_frame_down.addWidget(self.btn3)
@@ -199,8 +214,13 @@ class Language(QMainWindow):
             if rb.isChecked():
                 self.vib  = rb.text()
                 break
+        for rb in self.checkboxs:
+            if rb.isChecked():
+                self.property_vib.append(rb.text())
         if self.vib == []:
             self.lb_err.setText('Выберите язык')
+        elif self.property_vib == []:
+            self.lb_err.setText('Выберите свойство')
         else:
             self.lb_err.setText('')
             if self.shet_prodol_or_snulya==1:
@@ -216,13 +236,16 @@ class Language(QMainWindow):
                 self.en = int(self.ent_less_end.text())
             if self.st == 0 and self.en == 0:
                 self.lb_err.setText('Выберите номера\n уроков')
-
             elif self.st > self.en:
                 self.lb_err.setText('Номер конечного урока\n должен быть больше\n начального')
             else:
-                self.start_was_clicked = True
                 self.fill_alls_dict()
-                self.menu2()
+                if self.alls2 ==[]:
+                    self.lb_err.setText('Нет слов для теста')
+                    self.data_from_xls()
+                else:
+                    self.start_was_clicked = True
+                    self.menu2()
 
     def menu2(self):
         self.frame_main.deleteLater()
@@ -300,7 +323,7 @@ class Language(QMainWindow):
             otvet='Англ'
         else:
             otvet='Русс'
-        places = [self.vib,otvet]
+        places = [self.vib,otvet,self.property_vib]
         with open('for_sohr.txt', 'w') as filehandle:  
             for listitem in places:
                 filehandle.write('%s\n' % listitem)
@@ -353,6 +376,7 @@ class Language(QMainWindow):
                 places3.append(currentPlace)
         self.vib=places3[0]
         self.for_table_sp=places3[1].split(",")
+        self.property_vib=places3[2]
         self.fill_alls_dict()
         self.menu2()
 
