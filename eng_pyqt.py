@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFrame, QLabel, QLineEdit, QCheckBox, QRadioButton, QVBoxLayout, QHBoxLayout, QPushButton
-from PyQt5.QtGui import (QFont,QPalette, QColor, QBrush, QPixmap)
+from PyQt5.QtGui import (QFont)
 from PyQt5.QtCore import Qt
 import pandas as pd
 import ast
@@ -11,42 +11,49 @@ class Language(QMainWindow):
     def __init__(self):
         super().__init__()
         self.windowss = QFrame()
-        self.shet = 0 # счетчик для заполнения массива с словами, которые будут в тесте
+        self.setGeometry(300, 300, 400, 500)
+        self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
         self.stat = dict()
+        self.options_for_zero()
+        self.check_new_words_for_stat()
+        self.len_of_words=[]
+        for i in self.alls:
+            self.len_of_words.append(i['Lesson'])
+        self.main()
+
+    def options_for_zero(self):
         self.shet_know = 0 # счетчик знаю или не знаю слово
         self.start_was_clicked = False
-        self.shet_prodol_or_snulya=0 # продолжить незаконченный тест в прошлый раз или весь список проходить занова
         self.slovo_dlya_povtora_testa=0
-        self.shet_for_povtor=0 # счетчик для повтора слов, если у них не было ответа
         self.bez_otvet=[] # массив для слов без ответа, чтобы повторно пройти тест
-        self.sp = ['Англ', 'Русс']
-        self.vib=[]
         self.check_value =False
-        print('-------------------------------------------')
-        self.setGeometry(300, 300, 300, 200)
-        self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
+        self.test_is_over = False
+        self.shet = 0 # счетчик для заполнения массива с словами, которые будут в тесте
+        self.shet_prodol_or_snulya=0 # продолжить незаконченный тест в прошлый раз или весь список проходить занова
+        self.sp = ['Англ', 'Русс']
+        self.sh2 = 0
+        self.shet_for_povtor = 0 # счетчик для повтора слов, если у них не было ответа
         self.data_from_xls()
-        self.main()
+        self.vib = []
 
     def data_from_xls(self):
         self.xl = pd.ExcelFile('Words.xlsx')
         self.df = self.xl.parse('Words')
         self.alls  = self.df.reset_index().to_dict('records')
-        print('1 data_from_xls',len(self.alls))
 
-    def com_vib_dict(self):   # Проверка и сравнение текстового файла Words и словаря в файле stat.txt
+    def fill_alls_dict(self):   
         self.alls2 = []
+        for i in self.alls:
+            if i['Lesson'] >= self.st and i['Lesson'] <= self.en:
+                self.alls2.append(i)
+        self.alls = self.alls2
+
+    def check_new_words_for_stat(self): # Проверка и сравнение текстового файла Words и словаря в файле stat.txt
         new_stat = {'Words': {}}
         self.alls_all_sheet = {}
         for i in new_stat:
             df_l = self.xl.parse(i)
             self.alls_all_sheet[i] = df_l.reset_index().to_dict('records')
-
-        for i in self.alls:
-            if i['Lesson'] >= self.st and i['Lesson'] <= self.en:
-                self.alls2.append(i)
-        self.alls = self.alls2
-        print('com_vib_dict',len(self.alls))
 
         with open('stat.txt',encoding='utf-8') as f:
             data = f.read()
@@ -92,15 +99,16 @@ class Language(QMainWindow):
         self.frame_main = QFrame()
         self.frame_up = QFrame()
         font = QFont("Times", 10)
-        nbur=[]
-        for i in self.alls:
-            nbur.append(i['Lesson'])
+        nbur = self.len_of_words.copy()
         self.lb_start = QLabel('Первый урок')
         self.lb_start.setFont(font)
         self.ent_less = QLineEdit(text='0')
         self.lb_end = QLabel('Последний урок')
         self.lb_end.setFont(font)
-        self.ent_less_end = QLineEdit(text=str(max(nbur)))
+        if self.start_was_clicked == False:
+            self.ent_less_end = QLineEdit(text=str(max(nbur)))
+        else:
+            self.ent_less_end = QLineEdit(text=str(self.en))
         self.ent_less.setFixedWidth(50)
         self.ent_less_end.setFixedWidth(50)
         self.lb_err = QLabel()
@@ -108,7 +116,7 @@ class Language(QMainWindow):
         self.lb_err.setStyleSheet("color: red")
         self.lb_err.setFont(font_error)
         self.frame_down = QFrame()
-        self.lb_max_ur = QLabel(f'Всего уроков = {max(nbur)}')
+        self.lb_max_ur = QLabel(f'Всего уроков = {max(self.len_of_words)}')
         self.lb_max_ur.setFont(font)
         self.check_r_or_st = QCheckBox('Показывать слова рандомно')
         self.choose_lang = QLabel('Выберите язык')
@@ -117,7 +125,7 @@ class Language(QMainWindow):
         for i in self.sp:
             rb = QRadioButton(i)
             self.radios.append(rb)
-        self.btn3 = QPushButton("Начать тест")
+        self.btn3 = QPushButton("Включить тест")
         self.btn_witn_zero = QPushButton("Пройти тест с нуля")
         self.but_contin = QPushButton("Продолжить\n сохраненный тест")
         self.clear_save = QPushButton("Очистить\n сохраненный тест")
@@ -128,7 +136,6 @@ class Language(QMainWindow):
             if f.read():
                 self.but_contin.setVisible(True)
                 self.clear_save.setVisible(True)
-                self.btn3.setText('Начать тест с нуля')
         layout_frame_up = QVBoxLayout()
         layout_frame_up.addWidget(self.lb_start)
         layout_frame_up.addWidget(self.ent_less)
@@ -158,16 +165,11 @@ class Language(QMainWindow):
         self.clear_save.clicked.connect(self.ochist_file)
         self.btn_witn_zero.clicked.connect(self.checks_zero)
 
-    def checks_zero(self):
-        print('CHECKS_ZERO')
-        self.sh2 = 0
-        print('self.data_from_xls')
-        self.data_from_xls()
+    def checks_zero(self):               # Кнопка "Начать тест с нуля"
+        self.options_for_zero()
         self.st = int(self.ent_less.text())
         self.en = int(self.ent_less_end.text())
-        print('self.over')
         self.over()
-        print('self.checks in over and len alls in Over')
         self.checks()
 
     def continue_funk(self):
@@ -188,11 +190,10 @@ class Language(QMainWindow):
         self.vib=places3[0]
         self.for_table_sp=places3[1].split(",")  
         self.checks() 
-        self.com_vib_dict()
+        self.fill_alls_dict()
         self.testting()
 
     def checks(self):
-        print('CHECKS')
         self.check_value = self.check_r_or_st.isChecked()
         for rb in self.radios:
             if rb.isChecked():
@@ -220,7 +221,7 @@ class Language(QMainWindow):
                 self.lb_err.setText('Номер конечного урока\n должен быть больше\n начального')
             else:
                 self.start_was_clicked = True
-                self.com_vib_dict()
+                self.fill_alls_dict()
                 self.menu2()
 
     def menu2(self):
@@ -324,28 +325,15 @@ class Language(QMainWindow):
         with open('stat.txt', 'w+', encoding='utf-8') as file:
             json.dump(self.stat, file, indent='    ', ensure_ascii=False)
 
-    def sohran(self):
-        with open('sohranen.txt', 'w+', encoding='utf-8') as file:
-            json.dump(self.test, file, indent='    ', ensure_ascii=False)
-        if self.vib == 'Русс':
-            otvet='Англ'
-        else:
-            otvet='Русс'
-        places = [self.vib,otvet]
-        with open('for_sohr.txt', 'w') as filehandle:  
-            for listitem in places:
-                filehandle.write('%s\n' % listitem)
-        a=[self.st,self.en,'Words']
-        with open('num_less.txt', 'w') as filehandle:  
-            for listitem in a:
-                filehandle.write('%s\n' % listitem)
-
     def ochist_file(self):
         with open('sohranen.txt', 'w') as f:
             f.write('')
         with open('for_sohr.txt', 'w') as f:
             f.write('')
         self.frame_main.deleteLater()
+        self.options_for_zero()
+        self.st = int(self.ent_less.text())
+        self.en = int(self.ent_less_end.text())
         self.main()
 
     def prodoljit(self):
@@ -365,7 +353,7 @@ class Language(QMainWindow):
                 places3.append(currentPlace)
         self.vib=places3[0]
         self.for_table_sp=places3[1].split(",")
-        self.com_vib_dict()
+        self.fill_alls_dict()
         self.menu2()
 
     def testting(self):
@@ -379,16 +367,15 @@ class Language(QMainWindow):
         if self.shet == 0:  # Начало теста, заполнение его
             self.count_all = 0
             self.count_right = 0
-            if self.shet_for_povtor==0:  # Если это тест с нуля, а не с повторным проходом неузнанных слов
+            if self.shet_for_povtor==0:  # Если это тест с нуля
                 if self.shet_prodol_or_snulya==1:
                     self.test=self.test_from_file
                 else:
                     self.test = []
                     self.test = self.alls.copy()
-            else:
+            else:                        # Если это повторный проход неузнанных слов
                 self.test=self.bez_otvet
                 self.bez_otvet=[]
-
             self.stat_min_score = {}  # Второй сбор Словаря всех слов для теста (уже без нулевых значений)
             # И выбора из них миним по очкам
             test2 = []
@@ -410,6 +397,7 @@ class Language(QMainWindow):
             self.but_know.setVisible(True)
             self.again_but.setVisible(False)
             self.label_end.setText('')
+            self.test_is_over = False
             if self.sh2 % 2 == 0: # Четное нажатие клавиши, показывает вопрос
                 self.shet_know=0
                 self.but_know.setStyleSheet('QPushButton {background-color: red; color: white;}')
@@ -448,21 +436,12 @@ class Language(QMainWindow):
                                     self.table2.append(i)
                 self.ts = []
                 for j in self.table2:
-                    shetcik = 0
                     self.for_table_main = dict()
                     for i in self.for_table_sp:
-                        if len(self.r_l) > 1:
-                            if shetcik == 0:
-                                self.for_table_main[i] = str(j[i]) + ' , On=  ' + str(j['On'])
-                                shetcik += 1
-                            else:
-                                self.for_table_main[i] = j[i]
-                        else:
-                            self.for_table_main[i] = j[i]
+                        self.for_table_main[i] = j[i]
                     self.ts.append(self.for_table_main)
                 t = f'Количество слов= {len(self.test_count)}.'
                 self.label_total.setText(t)
-    
                 self.label_stat.setText('Статистика слова: ' + str(self.c_test))
 
                 self.label_question.setText(self.r)  # Вывод слова для теста
@@ -491,9 +470,6 @@ class Language(QMainWindow):
             self.label_count_right.setText('')
             self.but_know.setVisible(False)
             self.again_but.setVisible(False)
-            if self.shet_know==0:
-                if self.slovo_dlya_povtora_testa!=0:
-                    self.bez_otvet.append(self.slovo_dlya_povtora_testa)
             self.label_end.setText('Список слов закончился,\n начинается заново')
             self.label_end.setStyleSheet('color: red')
             self.label_total.setText('')
@@ -506,24 +482,19 @@ class Language(QMainWindow):
             if self.bez_otvet !=[]:
                 self.again_label.setText('Есть слова без ответа, повторить?')
                 self.again_but.setVisible(True)
+            self.test_is_over = True
             self.data_from_xls()
+            self.fill_alls_dict()
             self.over()
 
     def over(self):
         self.shet = 0
-        self.alls2 = []
-        for i in self.alls:
-            if i['Lesson'] >= self.st and i['Lesson'] <= self.en:
-                self.alls2.append(i)
-        self.alls = self.alls2
-        print('len in over',len(self.alls))
         self.slovo_dlya_povtora_testa=0
 
     def back(self):
-        print('BACK')
         self.frame_main.deleteLater()
         self.main()
-        if self.start_was_clicked==True:
+        if self.start_was_clicked==True and self.test_is_over==False:
             self.btn_witn_zero.setVisible(True)
 
 if __name__ == '__main__':
