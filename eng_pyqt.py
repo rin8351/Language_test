@@ -16,9 +16,7 @@ class Language(QMainWindow):
         self.stat = dict()
         self.options_for_zero()
         self.check_new_words_for_stat()
-        self.len_of_words=[]
-        for i in self.alls:
-            self.len_of_words.append(i['Lesson'])
+        self.len_of_words=max([x['Lesson'] for x in self.alls])
         self.main()
 
     def options_for_zero(self):
@@ -44,12 +42,8 @@ class Language(QMainWindow):
         self.alls  = self.df.reset_index().to_dict('records')
 
     def fill_alls_dict(self):   
-        self.alls2 = []
-        for i in self.alls:
-            if i['Lesson'] >= self.st and i['Lesson'] <= self.en:
-                if i['Pr'] in self.property_vib:
-                    self.alls2.append(i)
-        self.alls = self.alls2
+        self.alls2 =  [i for i in self.alls if (i['Lesson'] >= self.st and i['Lesson'] <= self.en) and i['Pr'] in self.property_vib]
+        self.alls = self.alls2.copy()
 
     def check_new_words_for_stat(self): # Проверка и сравнение текстового файла Words и словаря в файле stat.txt
         new_stat = {'Words': {}}
@@ -101,14 +95,14 @@ class Language(QMainWindow):
         self.frame_main = QFrame()
         self.frame_up = QFrame()
         font = QFont("Times", 10)
-        nbur = self.len_of_words.copy()
+        nbur = self.len_of_words
         self.lb_start = QLabel('Первый урок')
         self.lb_start.setFont(font)
         self.ent_less = QLineEdit(text='0')
         self.lb_end = QLabel('Последний урок')
         self.lb_end.setFont(font)
         if self.start_was_clicked == False:
-            self.ent_less_end = QLineEdit(text=str(max(nbur)))
+            self.ent_less_end = QLineEdit(text=str(nbur))
         else:
             self.ent_less_end = QLineEdit(text=str(self.en))
         # set white color to QLineEdit
@@ -121,7 +115,7 @@ class Language(QMainWindow):
         self.lb_err.setStyleSheet("color: red")
         self.lb_err.setFont(font_error)
         self.frame_down = QFrame()
-        self.lb_max_ur = QLabel(f'Всего уроков = {max(self.len_of_words)}')
+        self.lb_max_ur = QLabel(f'Всего уроков = {self.len_of_words}')
         self.lb_max_ur.setFont(font)
         self.check_r_or_st = QCheckBox('Показывать слова рандомно')
         self.choose_lang = QLabel('Выберите язык')
@@ -443,21 +437,12 @@ class Language(QMainWindow):
                             self.r = i[self.vib]
                         if self.r != 'n':
                             break
-                if '、' in self.r:
-                    self.r_l = self.r.split('、')
-                else:
-                    self.r_l = [self.r]
+                self.r_l = [self.r]
                 for i in self.test:
                     for j in self.r_l:
-                        if '、' in i[self.vib]:
-                            isv = i[self.vib].split('、')
-                            if j in isv:
-                                if i not in self.table2:
-                                    self.table2.append(i)
-                        else:
-                            if j == i[self.vib]:
-                                if i not in self.table2:
-                                    self.table2.append(i)
+                        if j == i[self.vib]:
+                            if i not in self.table2:
+                                self.table2.append(i)
                 self.ts = []
                 for j in self.table2:
                     self.for_table_main = dict()
